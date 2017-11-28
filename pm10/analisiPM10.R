@@ -7,6 +7,7 @@ library("lattice")
 library("stringr")
 library("gridExtra")
 library("ggplot2")
+library("magrittr")
 source("funzioniAria.R")
 options(warn=2,stringsAsFactors=FALSE,error=recover)
 Sys.setenv(TZ="UTC") #linux..su windows??boh
@@ -30,7 +31,17 @@ SOGLIA.SUPERAMENTI<-listaParametri[["sogliaSuperamenti"]]
 SOGLIA.GIORNALIERA<-listaParametri[["sogliaGiornaliera"]]
 
 #validity_fk: flag per qualità del dato
-read_delim("data_records_pm10_2013_2014_Basilicata_Sicilia.csv",delim=";",col_names = TRUE)->dati.tmp
+#solo per Copernicus: utilizziamo "sampling_point_name" come codice identificativo al posto di observation_fk
+read_delim("dati_PM10_2015_annuario.csv",delim=";",col_names = TRUE) %>% rename(observation_fk=sampling_point_name)->dati.tmp ### <---- ATTENZIONE, stiamo usando sampling_point_name come observation_fk
+
+#Se esiste un file "daEliminare.txt", eliminiamo tutti i dati relativi ai codici elencati nel file: aggiunto per Copernicus
+if(file.exists("daEliminare.txt")){
+  
+  read_lines("daEliminare.txt")->eliminare
+  dati.tmp %<>% filter(! observation_fk %in% eliminare)
+
+}#fine if su file.exists
+
 
 #variabili che ci interessano
 dati.tmp %>% 
@@ -64,7 +75,7 @@ lapply(codiciStazioni,FUN=function(codiceStaz){
     mutate(yymmddhh=as.POSIXct(yymmddhh,tz="UTC"),
            yymmddhh.fine=as.POSIXct(yymmddhh.fine,tz="UTC"),
            gapTime=yymmddhh.fine-yymmddhh) ->subDati
-  
+
     if(all(is.na(subDati[,c("valore")]))) return(list(NULL,NULL))
 
     #quanti e quali anni nella serie?
